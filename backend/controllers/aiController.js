@@ -4,9 +4,7 @@ import sql from '../configs/db.js'
 import axios from 'axios'
 import {v2 as cloudinary} from 'cloudinary'
 import fs from 'fs'
-import * as pdfParseModule from 'pdf-parse'
-
-const pdfParse = pdfParseModule.default || pdfParseModule.PDFParse || pdfParseModule
+import pdf from 'pdf-parse/lib/pdf-parse.js'
 
 const AI = new OpenAI({
   apiKey: process.env.GEMINI_API_KEY,
@@ -438,20 +436,8 @@ export const reviewResume = async (req, res) => {
     }
 
     const dataBuffer = fs.readFileSync(resume.path);
-    let extractedText = '';
-
-    try {
-      const parser = new pdfParse(dataBuffer);
-      const res = await parser.getText();
-      extractedText = res.text || res;
-    } catch (e1) {
-      try {
-        const pdfData = await pdfParse(dataBuffer);
-        extractedText = pdfData.text || pdfData;
-      } catch (e2) {
-        extractedText = dataBuffer.toString('utf-8');
-      }
-    }
+    const pdfData = await pdf(dataBuffer);
+    const extractedText = pdfData.text || '';
 
     const prompt = `Review this resume and provide constructive feedback on its strengths, weaknesses and areas of improvement. Resume content:\n\n ${extractedText}`
 
