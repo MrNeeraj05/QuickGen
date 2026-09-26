@@ -10,13 +10,17 @@ axios.defaults.baseURL = import.meta.env.VITE_BASE_URL;
 function Dashboard() {
   const [creations, setCreations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { getToken } = useAuth();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
 
   const getDashboardData = async () => {
     try {
+      setLoading(true);
+      const token = await getToken();
+      if (!token) return;
+
       const { data } = await axios.get("/api/user/get-user-creations", {
         headers: {
-          Authorization: `Bearer ${await getToken()}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -33,8 +37,12 @@ function Dashboard() {
   };
 
   useEffect(() => {
-    getDashboardData();
-  }, []);
+    if (isLoaded && isSignedIn) {
+      getDashboardData();
+    } else if (isLoaded && !isSignedIn) {
+      setLoading(false);
+    }
+  }, [isLoaded, isSignedIn]);
 
   return (
     <div className="min-h-full bg-[#fafaff] p-5 sm:p-7">

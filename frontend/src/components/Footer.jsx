@@ -11,6 +11,23 @@ function Footer() {
 
   const navigate = useNavigate()
 
+  const handleHomeClick = () => {
+    navigate('/')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handlePricingClick = () => {
+    navigate('/')
+    setTimeout(() => {
+      const pricingEl = document.getElementById('pricing')
+      if (pricingEl) {
+        pricingEl.scrollIntoView({ behavior: 'smooth' })
+      } else {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+      }
+    }, 100)
+  }
+
   return (
     <footer className='relative mt-20 overflow-hidden border-t border-gray-100 bg-white'>
 
@@ -31,7 +48,7 @@ function Footer() {
 
             <div
               className='flex w-fit cursor-pointer items-center gap-2'
-              onClick={() => navigate('/')}
+              onClick={handleHomeClick}
             >
 
               <img
@@ -67,7 +84,7 @@ function Footer() {
 
               <li>
                 <button
-                  onClick={() => navigate('/')}
+                  onClick={handleHomeClick}
                   className='transition-colors hover:text-purple-600'
                 >
                   Home
@@ -94,7 +111,7 @@ function Footer() {
 
               <li>
                 <button
-                  onClick={() => navigate('/')}
+                  onClick={handlePricingClick}
                   className='transition-colors hover:text-purple-600'
                 >
                   Pricing

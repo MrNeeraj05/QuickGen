@@ -16,6 +16,12 @@ const [loading, setLoading] = useState(false)
     const { getToken } = useAuth()
   const onSubmitHandler = async (e) => {
     e.preventDefault()
+
+    if (!input) {
+      toast.error('Please upload a resume file')
+      return
+    }
+
     try {
       setLoading(true)
 
@@ -39,11 +45,13 @@ const [loading, setLoading] = useState(false)
         toast.error(data.message)
       }
     } catch (error) {
-      toast.error(
-        error.response?.data?.message ||
-        error.message ||
-        'Something went wrong'
-      )
+      if (error.message !== 'canceled' && error.message !== 'terminated') {
+        toast.error(
+          error.response?.data?.message ||
+          error.message ||
+          'Something went wrong'
+        )
+      }
     } finally {
       setLoading(false)
     }
@@ -143,33 +151,30 @@ const [loading, setLoading] = useState(false)
             </div>
           </div>
 
-          {/* Empty State */}
-          {content?(
-<div className='flex flex-1 items-center justify-center'>
-            <div className='flex max-w-sm flex-col items-center gap-4 text-center text-gray-400'>
+          {/* Empty State vs Content */}
+          {!content ? (
+            <div className='flex flex-1 items-center justify-center'>
+              <div className='flex max-w-sm flex-col items-center gap-4 text-center text-gray-400'>
+                <div className='flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-50 text-purple-300'>
+                  <FileText className='h-7 w-7' />
+                </div>
 
-              <div className='flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-50 text-purple-300'>
-                <FileText className='h-7 w-7' />
+                <p className='text-sm leading-6'>
+                  Upload your resume and click{' '}
+                  <span className='font-medium text-purple-500'>
+                    "Review Resume"
+                  </span>{' '}
+                  to get started
+                </p>
               </div>
-
-              <p className='text-sm leading-6'>
-                Upload your resume and click{' '}
-                <span className='font-medium text-purple-500'>
-                  "Review Resume"
-                </span>{' '}
-                to get started
-              </p>
-
             </div>
-          </div>
-          ):(
+          ) : (
             <div className='mt-3 h-full overflow-y-scroll text-sm text-slate-600'>
-            <div>
-              <Markdown>{content}</Markdown>
+              <div className='reset-tw'>
+                <Markdown>{content}</Markdown>
+              </div>
             </div>
-            </div>
-          )
-          }
+          )}
         </div>
 
       </div>

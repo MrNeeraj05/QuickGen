@@ -24,25 +24,35 @@ function WriteArticle() {
   const onSubmitHandler = async (e) => {
     e.preventDefault()
 
-    // Api call
     try {
       setLoading(true);
-      const prompt = `Write an article about ${input} in about ${selectedLength.text}`
-      const {data} = await axios.post('api/ai/generate-article', {prompt,
-         length:selectedLength.length},
-         {headers:{
-          Authorization:`Bearer ${await getToken()}`}})
+      const prompt = `Write a comprehensive and detailed article about "${input}". Target length: ${selectedLength.desc}. Organize into clear headings (## Heading) and paragraphs using standard Markdown. Write out the entire article completely.`
+      const { data } = await axios.post(
+        '/api/ai/generate-article',
+        {
+          prompt,
+          length: Number(selectedLength.length)
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${await getToken()}`
+          }
+        }
+      )
 
-    if(data.success){
-      setContent(data.content)
-    }
-    else{
-      toast.error(data.message)
-    }
+      if (data.success) {
+        setContent(data.content)
+        toast.success(data.message || 'Article generated successfully')
+      } else {
+        toast.error(data.message)
+      }
     } catch (error) {
-      toast.error(error.message)
+      if (error.message !== 'canceled' && error.message !== 'terminated') {
+        toast.error(error.response?.data?.message || error.message || 'Something went wrong')
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (

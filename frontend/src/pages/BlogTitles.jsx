@@ -37,7 +37,7 @@ function BlogTitles() {
     try {
       setLoading(true)
 
-      const prompt = `Generate catchy and engaging blog titles for the keyword "${input}" in the category "${selectedCategory}". Provide multiple title suggestions.`
+      const prompt = `Generate 10 catchy and engaging blog titles for the keyword "${input}" in the category "${selectedCategory}". Output only a numbered list of 10 titles.`
 
       const { data } = await axios.post(
         '/api/ai/generate-blog-titles',

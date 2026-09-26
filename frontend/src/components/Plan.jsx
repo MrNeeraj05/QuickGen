@@ -5,7 +5,7 @@ import { Sparkles, Check } from 'lucide-react'
 function Plan() {
 
   return (
-    <section className='relative overflow-hidden px-4 py-24 sm:px-20 lg:px-32'>
+    <section id='pricing' className='relative overflow-hidden px-4 py-24 sm:px-20 lg:px-32'>
 
       {/* Background glow */}
       <div className='absolute -left-40 top-20 -z-10 h-96 w-96 rounded-full bg-purple-400/10 blur-[130px]' />

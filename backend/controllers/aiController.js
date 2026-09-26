@@ -26,8 +26,10 @@ export const generateArticle = async (req, res) => {
       })
     }
 
+    const maxTokens = Math.min(Math.max(Number(length) * 2.5 || 2500, 2000), 4000)
+
     const response = await AI.chat.completions.create({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3.6-flash',
       messages: [
         {
           role: 'user',
@@ -35,7 +37,7 @@ export const generateArticle = async (req, res) => {
         }
       ],
       temperature: 0.7,
-      max_tokens: length
+      max_tokens: maxTokens
     })
 
     const content = response.choices[0].message.content
@@ -46,11 +48,16 @@ export const generateArticle = async (req, res) => {
     `
 
     if (plan !== 'premium') {
-      await clerkClient.users.updateUserMetadata(userId, {
-        privateMetadata: {
-          free_usage: free_usage + 1
-        }
-      })
+      const currentUsage = Number(free_usage) || 0
+      try {
+        await clerkClient.users.updateUserMetadata(userId, {
+          privateMetadata: {
+            free_usage: currentUsage + 1
+          }
+        })
+      } catch (clerkErr) {
+        console.error('Clerk metadata update warning:', clerkErr.message)
+      }
     }
 
     return res.json({
@@ -85,7 +92,7 @@ export const generateBlogTitle = async (req, res) => {
     }
 
     const response = await AI.chat.completions.create({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3.6-flash',
       messages: [
         {
           role: 'user',
@@ -93,7 +100,7 @@ export const generateBlogTitle = async (req, res) => {
         }
       ],
       temperature: 0.7,
-      max_tokens: 100,
+      max_tokens: 1200,
     })
 
     const content = response.choices[0].message.content
@@ -104,16 +111,21 @@ export const generateBlogTitle = async (req, res) => {
     `
 
     if (plan !== 'premium') {
-      await clerkClient.users.updateUserMetadata(userId, {
-        privateMetadata: {
-          free_usage: free_usage + 1
-        }
-      })
+      const currentUsage = Number(free_usage) || 0
+      try {
+        await clerkClient.users.updateUserMetadata(userId, {
+          privateMetadata: {
+            free_usage: currentUsage + 1
+          }
+        })
+      } catch (clerkErr) {
+        console.error('Clerk metadata update warning:', clerkErr.message)
+      }
     }
 
     return res.json({
       success: true,
-      message: 'Article generated successfully',
+      message: 'Titles generated successfully',
       content
     })
 
@@ -410,21 +422,21 @@ export const removeImageObject = async (req, res) => {
 export const reviewResume = async (req, res) => {
   try {
     const { userId } = await req.auth()
-    const resume = req.file;
-
+    const resume = req.file
     const plan = req.plan
+    const free_usage = req.free_usage
 
-    if (plan !== 'premium') {
+    if (plan !== 'premium' && free_usage >= 10) {
       return res.json({
         success: false,
-        message: 'This feature is only available for Premium users'
+        message: 'Limit reached. Upgrade to continue.'
       })
     }
       
     if (!resume) {
       return res.status(400).json({
         success: false,
-        message: 'Please upload a resume PDF file'
+        message: 'Please upload a resume file (PDF or Image)'
       })
     }
 
@@ -435,20 +447,64 @@ export const reviewResume = async (req, res) => {
       })
     }
 
-    const dataBuffer = fs.readFileSync(resume.path);
-    const pdfData = await pdf(dataBuffer);
-    const extractedText = pdfData.text || '';
+    let messages = []
+    const isImage = resume.mimetype?.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(resume.originalname)
 
-    const prompt = `Review this resume and provide constructive feedback on its strengths, weaknesses and areas of improvement. Resume content:\n\n ${extractedText}`
+    if (isImage) {
+      const dataBuffer = fs.readFileSync(resume.path)
+      const base64Image = dataBuffer.toString('base64')
+      const mimeType = resume.mimetype || 'image/jpeg'
 
-    const response = await AI.chat.completions.create({
-      model: 'gemini-2.0-flash',
-      messages: [
+      messages = [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Review this resume image and provide detailed, constructive feedback on its strengths, structure, formatting, content, and key areas of improvement.'
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:${mimeType};base64,${base64Image}`
+              }
+            }
+          ]
+        }
+      ]
+    } else {
+      let extractedText = ''
+      try {
+        const dataBuffer = fs.readFileSync(resume.path)
+        const pdfData = await pdf(dataBuffer)
+        extractedText = pdfData.text || ''
+      } catch (pdfErr) {
+        console.error('PDF Parse Error:', pdfErr.message)
+        return res.json({
+          success: false,
+          message: 'Unable to extract text from the PDF. Please make sure it is a valid text-based PDF or upload an image of your resume.'
+        })
+      }
+
+      if (!extractedText.trim()) {
+        return res.json({
+          success: false,
+          message: 'The uploaded PDF appears to be empty or contains scanned images without selectable text. Please upload an image format (PNG/JPG) of your resume.'
+        })
+      }
+
+      const prompt = `Review this resume and provide constructive feedback on its strengths, weaknesses and areas of improvement. Resume content:\n\n ${extractedText}`
+      messages = [
         {
           role: 'user',
           content: prompt
         }
-      ],
+      ]
+    }
+
+    const response = await AI.chat.completions.create({
+      model: 'gemini-3.6-flash',
+      messages,
       temperature: 0.7,
       max_tokens: 1000,
     })
@@ -458,7 +514,20 @@ export const reviewResume = async (req, res) => {
     await sql`
       INSERT INTO creations(user_id, prompt, content, type)
       VALUES (${userId}, 'Review the uploaded resume.', ${content}, 'resume-review')
-    `;
+    `
+
+    if (plan !== 'premium') {
+      const currentUsage = Number(free_usage) || 0
+      try {
+        await clerkClient.users.updateUserMetadata(userId, {
+          privateMetadata: {
+            free_usage: currentUsage + 1
+          }
+        })
+      } catch (clerkErr) {
+        console.error('Clerk metadata update warning:', clerkErr.message)
+      }
+    }
 
     return res.json({
       success: true,
@@ -466,11 +535,11 @@ export const reviewResume = async (req, res) => {
     })
 
   } catch (error) {
-    console.log(error.message)
+    console.error('Review Resume Error:', error.message)
 
     return res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message || 'Failed to review resume'
     })
   }
 }
